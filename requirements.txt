@@ -1,0 +1,8 @@
+requests
+websocket-client 
+pandas 
+numpy 
+scipy 
+matplotlib
+plotly
+jupyter
