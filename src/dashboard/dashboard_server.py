@@ -14,6 +14,7 @@ Usage:
 
 import asyncio
 import json
+import time
 from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
@@ -68,6 +69,9 @@ def read_last_line(path: Path) -> str | None:
 async def book_tail_loop():
     """Polls the order book logger's file for its latest snapshot line."""
     last_mtime = None
+    last_change_time = time.time()
+    STALE_THRESHOLD_SECONDS = 5  # logger writes ~once/sec; allow buffer for jitter
+
     while True:
         path = todays_path(ORDER_BOOK_DIR)
         try:
@@ -75,8 +79,12 @@ async def book_tail_loop():
         except FileNotFoundError:
             mtime = None
 
-        state.logger_active = mtime is not None and (last_mtime is None or mtime != last_mtime)
-        last_mtime = mtime
+        now = time.time()
+        if mtime is not None and mtime != last_mtime:
+            last_change_time = now
+            last_mtime = mtime
+
+        state.logger_active = mtime is not None and (now - last_change_time) < STALE_THRESHOLD_SECONDS
 
         line = read_last_line(path)
         if line:
