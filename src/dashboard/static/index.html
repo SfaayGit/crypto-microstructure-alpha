@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BTC-USD — Live Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --page-bg: #F3F4F7;
+    --card-bg: #FFFFFF;
+    --border-soft: #E7E9EE;
+    --text: #000000;
+    --text-dim: #4B5563;
+    --bid: #7C3AED;
+    --bid-bg: #F3EEFE;
+    --ask: #0EA5E9;
+    --ask-bg: #EAF7FE;
+    --shadow: 0 1px 2px rgba(16, 19, 25, 0.04), 0 4px 16px rgba(16, 19, 25, 0.06);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--page-bg);
+    color: var(--text);
+    font-family: "Space Grotesk", -apple-system, BlinkMacSystemFont, sans-serif;
+    min-height: 100vh;
+    padding: 28px;
+  }
+
+  .mono {
+    font-family: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .page-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: -28px -28px 24px -28px;
+    padding: 20px 28px;
+    background: linear-gradient(90deg, var(--bid), var(--ask));
+  }
+
+  .page-header h1 {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0;
+    color: #FFFFFF;
+    letter-spacing: 0.02em;
+  }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.85);
+    margin-left: auto;
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.4);
+  }
+
+  .status-dot.live {
+    background: #FFFFFF;
+    box-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-soft);
+    border-radius: 0;
+    box-shadow: var(--shadow);
+    padding: 20px;
+  }
+
+  .card-label {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin: 0 0 10px 0;
+  }
+
+  .card.mid-price { grid-column: span 2; }
+
+  .big-number {
+    font-size: 34px;
+    font-weight: 700;
+    color: var(--bid);
+    line-height: 1;
+  }
+
+  .sparkline {
+    margin-top: 12px;
+    height: 40px;
+    width: 100%;
+  }
+
+  .stat-number {
+    font-size: 26px;
+    font-weight: 700;
+  }
+
+  .gauge-track {
+    display: flex;
+    height: 10px;
+    border-radius: 0;
+    overflow: hidden;
+    background: var(--border-soft);
+    margin: 10px 0 8px 0;
+  }
+
+  .gauge-bid { background: var(--bid); }
+  .gauge-ask { background: var(--ask); }
+
+  .gauge-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+  }
+
+  .gauge-labels .bid-label { color: var(--bid); font-weight: 600; }
+  .gauge-labels .ask-label { color: var(--ask); font-weight: 600; }
+
+  .wide-row {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 16px;
+    margin-top: 16px;
+  }
+
+  @media (max-width: 900px) {
+    .wide-row { grid-template-columns: 1fr; }
+  }
+
+  .card h2 {
+    font-size: 13px;
+    font-weight: 700;
+    margin: 0 0 14px 0;
+  }
+
+  .book-row {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 4px 0;
+    font-size: 13px;
+  }
+
+  .book-bar {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 0;
+    border-radius: 0;
+  }
+
+  .book-row.ask .book-bar { right: 50%; background: var(--ask-bg); }
+  .book-row.bid .book-bar { left: 50%; background: var(--bid-bg); }
+
+  .book-row .price, .book-row .size {
+    position: relative;
+    z-index: 1;
+    padding: 0 10px;
+  }
+
+  .book-row.ask .price { text-align: right; color: var(--ask); font-weight: 600; }
+  .book-row.ask .size { text-align: left; color: var(--text-dim); }
+  .book-row.bid .price { text-align: right; color: var(--bid); font-weight: 600; }
+  .book-row.bid .size { text-align: left; color: var(--text-dim); }
+
+  .book-divider {
+    border-top: 1px dashed var(--border-soft);
+    margin: 8px 0;
+  }
+
+  .trade-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    padding: 6px 0;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .trade-row .price.buy { color: var(--bid); font-weight: 600; }
+  .trade-row .price.sell { color: var(--ask); font-weight: 600; }
+  .trade-row .time, .trade-row .size { color: var(--text-dim); text-align: right; }
+
+  footer {
+    margin-top: 16px;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>BTC-USD</h1>
+  <div class="status-pill">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">Connecting</span>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card mid-price">
+    <p class="card-label">MID PRICE</p>
+    <div class="big-number mono" id="midPrice">—</div>
+    <svg class="sparkline" id="sparkline" viewBox="0 0 300 40" preserveAspectRatio="none"></svg>
+  </div>
+
+  <div class="card">
+    <p class="card-label">SPREAD</p>
+    <div class="stat-number mono" id="spread">—</div>
+  </div>
+
+  <div class="card">
+    <p class="card-label">BOOK IMBALANCE</p>
+    <div class="gauge-track">
+      <div class="gauge-bid" id="gaugeBid" style="width:50%"></div>
+      <div class="gauge-ask" id="gaugeAsk" style="width:50%"></div>
+    </div>
+    <div class="gauge-labels">
+      <span class="bid-label" id="bidPct">50%</span>
+      <span class="ask-label" id="askPct">50%</span>
+    </div>
+  </div>
+</div>
+
+<div class="wide-row">
+  <div class="card">
+    <h2>ORDER BOOK</h2>
+    <div id="asks"></div>
+    <div class="book-divider"></div>
+    <div id="bids"></div>
+  </div>
+
+  <div class="card">
+    <h2>RECENT TRADES</h2>
+    <div id="trades"></div>
+  </div>
+</div>
+
+<footer id="lastUpdate">Waiting for data…</footer>
+
+<script>
+  const asksEl = document.getElementById('asks');
+  const bidsEl = document.getElementById('bids');
+  const tradesEl = document.getElementById('trades');
+  const midPriceEl = document.getElementById('midPrice');
+  const spreadEl = document.getElementById('spread');
+  const statusDot = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+  const lastUpdateEl = document.getElementById('lastUpdate');
+  const sparklineEl = document.getElementById('sparkline');
+  const gaugeBidEl = document.getElementById('gaugeBid');
+  const gaugeAskEl = document.getElementById('gaugeAsk');
+  const bidPctEl = document.getElementById('bidPct');
+  const askPctEl = document.getElementById('askPct');
+
+  const midPriceHistory = [];
+  const MAX_HISTORY = 60;
+
+  function fmtPrice(p) {
+    return Number(p).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function fmtSize(s) {
+    return Number(s).toFixed(4);
+  }
+
+  function renderSparkline() {
+    if (midPriceHistory.length < 2) return;
+    const min = Math.min(...midPriceHistory);
+    const max = Math.max(...midPriceHistory);
+    const range = max - min || 1;
+    const w = 300, h = 40;
+    const step = w / (MAX_HISTORY - 1);
+    const points = midPriceHistory.map((v, i) => {
+      const x = i * step;
+      const y = h - ((v - min) / range) * h;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+    sparklineEl.innerHTML = `<polyline points="${points}" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />`;
+  }
+
+  function renderBook(bids, asks) {
+    const maxSize = Math.max(
+      ...bids.map(b => b[1]), ...asks.map(a => a[1]), 0.0001
+    );
+
+    const asksSorted = [...asks].sort((a, b) => b[0] - a[0]);
+    asksEl.innerHTML = asksSorted.map(([price, size]) => {
+      const pct = Math.min(100, (size / maxSize) * 100);
+      return `<div class="book-row ask">
+        <div class="book-bar" style="width:${pct / 2}%"></div>
+        <div class="price mono">${fmtPrice(price)}</div>
+        <div class="size mono">${fmtSize(size)}</div>
+      </div>`;
+    }).join('');
+
+    bidsEl.innerHTML = bids.map(([price, size]) => {
+      const pct = Math.min(100, (size / maxSize) * 100);
+      return `<div class="book-row bid">
+        <div class="book-bar" style="width:${pct / 2}%"></div>
+        <div class="price mono">${fmtPrice(price)}</div>
+        <div class="size mono">${fmtSize(size)}</div>
+      </div>`;
+    }).join('');
+
+    if (bids.length && asks.length) {
+      const bestBid = bids[0][0];
+      const bestAsk = asksSorted[asksSorted.length - 1][0];
+      const mid = (bestBid + bestAsk) / 2;
+      midPriceEl.textContent = fmtPrice(mid);
+      spreadEl.textContent = fmtPrice(bestAsk - bestBid);
+
+      midPriceHistory.push(mid);
+      if (midPriceHistory.length > MAX_HISTORY) midPriceHistory.shift();
+      renderSparkline();
+    }
+
+    const bidVolume = bids.reduce((sum, [, size]) => sum + size, 0);
+    const askVolume = asks.reduce((sum, [, size]) => sum + size, 0);
+    const total = bidVolume + askVolume || 1;
+    const bidPct = (bidVolume / total) * 100;
+    const askPct = 100 - bidPct;
+    gaugeBidEl.style.width = bidPct + '%';
+    gaugeAskEl.style.width = askPct + '%';
+    bidPctEl.textContent = bidPct.toFixed(0) + '%';
+    askPctEl.textContent = askPct.toFixed(0) + '%';
+  }
+
+  function renderTrades(trades) {
+    tradesEl.innerHTML = trades.map(t => {
+      const side = t.side === 'buy' ? 'buy' : 'sell';
+      const timeStr = t.time ? t.time.split('T')[1].split('.')[0] : '';
+      return `<div class="trade-row">
+        <div class="price ${side} mono">${fmtPrice(t.price)}</div>
+        <div class="size mono">${fmtSize(t.size)}</div>
+        <div class="time mono">${timeStr}</div>
+      </div>`;
+    }).join('');
+  }
+
+  function connect() {
+    const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
+    const ws = new WebSocket(proto + location.host + '/ws');
+
+    ws.onopen = () => {
+      statusText.textContent = 'Live';
+      statusDot.classList.add('live');
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (!data.logger_active) {
+        statusText.textContent = 'Logger not writing — check VM';
+        statusDot.classList.remove('live');
+        return;
+      }
+      if (!data.ready) return;
+
+      renderBook(data.bids, data.asks);
+      renderTrades(data.trades);
+      lastUpdateEl.textContent = 'Last update: ' + new Date().toLocaleTimeString();
+    };
+
+    ws.onclose = () => {
+      statusText.textContent = 'Disconnected — retrying…';
+      statusDot.classList.remove('live');
+      setTimeout(connect, 2000);
+    };
+
+    ws.onerror = () => ws.close();
+  }
+
+  connect();
+</script>
+
+</body>
+</html>

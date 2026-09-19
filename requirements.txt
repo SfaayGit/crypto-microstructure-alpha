@@ -6,3 +6,5 @@ scipy
 matplotlib
 plotly
 jupyter
+fastapi 
+uvicorn[standard]
